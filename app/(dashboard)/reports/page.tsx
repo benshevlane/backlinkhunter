@@ -1,11 +1,15 @@
 import { ReportsOverview } from '@/components/reports/ReportsOverview';
 import { listOutreachEmailsForProject, listProjects, listProspects } from '@/src/lib/store';
+import { requireAuth } from '@/src/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export default async function ReportsPage() {
-  const projects = await listProjects();
-  const prospects = await listProspects();
+  const { orgId } = await requireAuth();
+  const projects = await listProjects(orgId);
+  const prospects = await listProspects(orgId);
   const allEmails = (
-    await Promise.all(projects.map((project) => listOutreachEmailsForProject(project.id)))
+    await Promise.all(projects.map((project) => listOutreachEmailsForProject(project.id, orgId)))
   ).flat();
 
   return (

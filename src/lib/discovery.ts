@@ -1,15 +1,4 @@
-import type { DiscoverRequest, OpportunityType } from '@/src/lib/types';
-
-export interface DiscoveryOpportunity {
-  prospect_url: string;
-  prospect_domain: string;
-  page_title: string;
-  page_url: string;
-  snippet: string;
-  opportunity_type: OpportunityType;
-  linkability_score: number;
-  relevance_score: number;
-}
+import type { DiscoverOpportunity, DiscoverRequest } from '@/src/lib/types';
 
 function makeSlug(text: string) {
   return text
@@ -22,11 +11,11 @@ function score(base: number, offset: number) {
   return Math.max(10, Math.min(95, base + offset));
 }
 
-export function discoverOpportunities(input: DiscoverRequest): DiscoveryOpportunity[] {
+export function discoverOpportunities(input: DiscoverRequest): DiscoverOpportunity[] {
   const keywords = input.seed_keywords && input.seed_keywords.length > 0 ? input.seed_keywords : ['backlinks'];
   const limit = Math.min(input.limit ?? 50, 200);
 
-  const opportunities: DiscoveryOpportunity[] = [];
+  const opportunities: DiscoverOpportunity[] = [];
 
   for (const keyword of keywords) {
     for (const type of input.opportunity_types) {

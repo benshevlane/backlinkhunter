@@ -1,5 +1,13 @@
 import type { OutreachGenerateRequest, ProspectRecord } from '@/src/lib/types';
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function makeSubject(prospect: ProspectRecord, tone: OutreachGenerateRequest['tone']) {
   const tonePrefix = tone === 'friendly' ? 'Quick idea' : tone === 'concise' ? 'Link suggestion' : 'Partnership idea';
   return `${tonePrefix} for ${prospect.prospect_domain}`;
@@ -30,7 +38,7 @@ export function generateOutreachDraft(
 
   const bodyHtml = bodyText
     .split('\n\n')
-    .map((paragraph) => `<p>${paragraph.replace(/\n/g, '<br/>')}</p>`)
+    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br/>')}</p>`)
     .join('');
 
   return {

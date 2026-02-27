@@ -1,24 +1,24 @@
 import { NextResponse } from 'next/server';
 import { createProject, listProjects } from '@/src/lib/store';
+import { requireApiAuth, isResponse, parseBody } from '@/src/lib/api-utils';
+import { createProjectSchema } from '@/src/lib/validations';
 
 export async function GET() {
-  const projects = await listProjects();
+  const auth = await requireApiAuth();
+  if (isResponse(auth)) return auth;
+
+  const projects = await listProjects(auth.orgId);
   return NextResponse.json({ projects });
 }
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as {
-    name?: string;
-    target_url?: string;
-    niche?: string;
-    target_keywords?: string[];
-  };
+  const auth = await requireApiAuth();
+  if (isResponse(auth)) return auth;
 
-  if (!body.name || !body.target_url) {
-    return NextResponse.json({ error: 'name and target_url are required' }, { status: 400 });
-  }
+  const body = await parseBody(request, createProjectSchema);
+  if (isResponse(body)) return body;
 
-  const project = await createProject({
+  const project = await createProject(auth.orgId, {
     name: body.name,
     target_url: body.target_url,
     niche: body.niche,

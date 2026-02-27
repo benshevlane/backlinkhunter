@@ -1,21 +1,24 @@
 import { NextResponse } from 'next/server';
 import { enrichProspectContact } from '@/src/lib/enrichment';
 import { getProspectById, updateProspect } from '@/src/lib/store';
-import type { EnrichProspectRequest, EnrichProspectResponse } from '@/src/lib/types';
+import { requireApiAuth, isResponse, parseBody, notFound } from '@/src/lib/api-utils';
+import { enrichProspectSchema } from '@/src/lib/validations';
+import type { EnrichProspectResponse } from '@/src/lib/types';
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as Partial<EnrichProspectRequest>;
-  if (!body.prospect_id) {
-    return NextResponse.json({ error: 'prospect_id is required' }, { status: 400 });
-  }
+  const auth = await requireApiAuth();
+  if (isResponse(auth)) return auth;
 
-  const prospect = await getProspectById(body.prospect_id);
+  const body = await parseBody(request, enrichProspectSchema);
+  if (isResponse(body)) return body;
+
+  const prospect = await getProspectById(body.prospect_id, auth.orgId);
   if (!prospect) {
-    return NextResponse.json({ error: 'prospect not found' }, { status: 404 });
+    return notFound('prospect not found');
   }
 
   const enrichment = enrichProspectContact(prospect);
-  const updated = await updateProspect(prospect.id, {
+  const updated = await updateProspect(prospect.id, auth.orgId, {
     contact_name: enrichment.contact_name,
     contact_email: enrichment.contact_email,
     contact_role: enrichment.contact_role,

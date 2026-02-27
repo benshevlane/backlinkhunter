@@ -1,15 +1,17 @@
 import Link from 'next/link';
 import { OutreachWorkspace } from '@/components/outreach/OutreachWorkspace';
-import { listOutreachEmailsForProject, listProjects, listProspectsForProject } from '@/src/lib/store';
+import { listOutreachEmailsForProject, getProjectById, listProspectsForProject } from '@/src/lib/store';
+import { requireAuth } from '@/src/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export default async function ProjectOutreachPage({ params }: { params: { id: string } }) {
-  const [projects, prospects, emails] = await Promise.all([
-    listProjects(),
-    listProspectsForProject(params.id),
-    listOutreachEmailsForProject(params.id),
+  const { orgId } = await requireAuth();
+  const [project, prospects, emails] = await Promise.all([
+    getProjectById(params.id, orgId),
+    listProspectsForProject(params.id, orgId),
+    listOutreachEmailsForProject(params.id, orgId),
   ]);
-
-  const project = projects.find((item) => item.id === params.id);
 
   if (!project) {
     return (

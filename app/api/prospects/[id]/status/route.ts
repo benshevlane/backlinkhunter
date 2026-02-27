@@ -1,35 +1,25 @@
 import { NextResponse } from 'next/server';
 import { updateProspectStatus } from '@/src/lib/store';
-import type { ProspectStatus } from '@/src/lib/types';
+import { requireApiAuth, isResponse, parseBody, notFound } from '@/src/lib/api-utils';
+import { updateProspectStatusSchema } from '@/src/lib/validations';
 
 interface Context {
   params: { id: string };
 }
 
-const statuses: ProspectStatus[] = [
-  'identified',
-  'outreach_queued',
-  'contacted',
-  'followed_up',
-  'won',
-  'lost',
-  'not_relevant',
-  'needs_manual_enrichment',
-  'verification_error',
-];
-
 export async function PATCH(request: Request, context: Context) {
-  const body = (await request.json()) as { status?: ProspectStatus };
-  if (!body.status || !statuses.includes(body.status)) {
-    return NextResponse.json({ error: 'invalid status' }, { status: 400 });
-  }
+  const auth = await requireApiAuth();
+  if (isResponse(auth)) return auth;
+
+  const body = await parseBody(request, updateProspectStatusSchema);
+  if (isResponse(body)) return body;
 
   try {
-    const prospect = await updateProspectStatus(context.params.id, body.status);
+    const prospect = await updateProspectStatus(context.params.id, auth.orgId, body.status);
     return NextResponse.json({ prospect });
   } catch (error) {
-    if (error instanceof Error && error.message === 'prospect_not_found') {
-      return NextResponse.json({ error: 'prospect not found' }, { status: 404 });
+    if (error instanceof Error && error.message?.includes('PGRST116')) {
+      return notFound('prospect not found');
     }
     throw error;
   }

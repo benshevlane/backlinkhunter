@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { OutreachEmailRecord, ProspectRecord } from '@/src/lib/types';
 
@@ -12,18 +13,18 @@ export function OutreachWorkspace({
   prospects: ProspectRecord[];
   initialEmails: OutreachEmailRecord[];
 }) {
+  const router = useRouter();
   const [selectedProspect, setSelectedProspect] = useState(prospects[0]?.id ?? '');
   const [tone, setTone] = useState<Tone>('professional');
   const [customValue, setCustomValue] = useState('');
   const [emails, setEmails] = useState(initialEmails);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function generateDraft() {
-    if (!selectedProspect) {
-      alert('Select a prospect first');
-      return;
-    }
+    if (!selectedProspect) return;
 
+    setError(null);
     setBusy(true);
     const response = await fetch('/api/outreach/generate', {
       method: 'POST',
@@ -38,7 +39,8 @@ export function OutreachWorkspace({
     setBusy(false);
 
     if (!response.ok) {
-      alert('Failed to generate draft');
+      const data = await response.json().catch(() => null);
+      setError(data?.error ?? 'Failed to generate draft');
       return;
     }
 
@@ -63,21 +65,33 @@ export function OutreachWorkspace({
         body_text: created.body_text,
         ai_generated: true,
         edited_by_user: false,
-        status: 'draft',
+        status: 'draft' as const,
+        scheduled_for: null,
+        sent_at: null,
+        gmail_message_id: null,
+        outlook_message_id: null,
+        opened_at: null,
+        replied_at: null,
+        reply_snippet: null,
         is_followup: false,
         followup_number: 0,
+        parent_email_id: null,
         created_at: new Date().toISOString(),
       },
       ...prev,
     ]);
 
     setCustomValue('');
+    router.refresh();
   }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
       <section className="rounded-lg border border-slate-200 bg-white p-4">
         <h2 className="text-sm font-semibold text-slate-800">Generate outreach draft</h2>
+        {error && (
+          <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+        )}
         <div className="mt-3 space-y-3">
           <select
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"

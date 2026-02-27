@@ -1,11 +1,17 @@
 import Link from 'next/link';
 import { CreateProspectForm } from '@/components/prospects/CreateProspectForm';
 import { ProspectsBoard } from '@/components/prospects/ProspectsBoard';
-import { listProjects, listProspectsForProject } from '@/src/lib/store';
+import { getProjectById, listProspectsForProject } from '@/src/lib/store';
+import { requireAuth } from '@/src/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export default async function ProjectProspectsPage({ params }: { params: { id: string } }) {
-  const [projects, prospects] = await Promise.all([listProjects(), listProspectsForProject(params.id)]);
-  const project = projects.find((item) => item.id === params.id);
+  const { orgId } = await requireAuth();
+  const [project, prospects] = await Promise.all([
+    getProjectById(params.id, orgId),
+    listProspectsForProject(params.id, orgId),
+  ]);
 
   if (!project) {
     return (

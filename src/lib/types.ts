@@ -140,7 +140,103 @@ export interface OutreachEmailRecord {
   ai_generated: boolean;
   edited_by_user: boolean;
   status: OutreachEmailStatus;
+  scheduled_for: string | null;
+  sent_at: string | null;
+  gmail_message_id: string | null;
+  outlook_message_id: string | null;
+  opened_at: string | null;
+  replied_at: string | null;
+  reply_snippet: string | null;
   is_followup: boolean;
   followup_number: number;
+  parent_email_id: string | null;
+  created_at: string;
+}
+
+// ---- DB entity types matching the schema ----
+
+export interface UserRecord {
+  id: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+}
+
+export interface OrganisationRecord {
+  id: string;
+  name: string;
+  plan: PlanTier;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  monthly_prospect_limit: number;
+  prospects_used_this_month: number;
+  created_at: string;
+}
+
+export interface OrganisationMemberRecord {
+  id: string;
+  org_id: string;
+  user_id: string;
+  role: OrgRole;
+  created_at: string;
+}
+
+export interface EmailIntegrationRecord {
+  id: string;
+  org_id: string;
+  user_id: string;
+  provider: EmailProvider;
+  email_address: string;
+  access_token: string | null;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface LinkExchangeListingRecord {
+  id: string;
+  org_id: string;
+  project_id: string;
+  domain: string;
+  niche: string;
+  da_range: string | null;
+  looking_for: string | null;
+  offering: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type LinkExchangeMatchStatus = 'pending' | 'accepted' | 'declined' | 'completed';
+
+export interface LinkExchangeMatchRecord {
+  id: string;
+  listing_a_id: string;
+  listing_b_id: string;
+  status: LinkExchangeMatchStatus;
+  initiated_by: string | null;
+  created_at: string;
+}
+
+export interface KeywordAlertRecord {
+  id: string;
+  project_id: string;
+  org_id: string;
+  keyword: string;
+  last_checked_at: string | null;
+  last_results_count: number | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  org_id: string;
+  user_id: string | null;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 }

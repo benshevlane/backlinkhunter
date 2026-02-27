@@ -1,9 +1,13 @@
 import Link from 'next/link';
 import { CreateProjectForm } from '@/components/projects/CreateProjectForm';
 import { listProjects } from '@/src/lib/store';
+import { requireAuth } from '@/src/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export default async function ProjectsPage() {
-  const projects = await listProjects();
+  const { orgId } = await requireAuth();
+  const projects = await listProjects(orgId);
 
   return (
     <div className="space-y-6">

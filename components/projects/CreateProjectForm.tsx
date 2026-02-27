@@ -1,14 +1,18 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export function CreateProjectForm() {
+  const router = useRouter();
   const [name, setName] = useState('');
   const [targetUrl, setTargetUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError(null);
     setSubmitting(true);
 
     const response = await fetch('/api/projects', {
@@ -21,16 +25,20 @@ export function CreateProjectForm() {
     if (response.ok) {
       setName('');
       setTargetUrl('');
-      window.location.reload();
+      router.refresh();
       return;
     }
 
-    alert('Failed to create project');
+    const data = await response.json().catch(() => null);
+    setError(data?.error ?? 'Failed to create project');
   }
 
   return (
     <form onSubmit={onSubmit} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4">
       <h2 className="text-sm font-semibold text-slate-700">Create project</h2>
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+      )}
       <input
         required
         placeholder="Project name"

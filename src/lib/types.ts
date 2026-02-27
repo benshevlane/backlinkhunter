@@ -24,6 +24,17 @@ export type OutreachEmailStatus = 'draft' | 'scheduled' | 'sent' | 'failed';
 
 export type EmailProvider = 'gmail' | 'outlook';
 
+export interface ProjectRecord {
+  id: string;
+  org_id: string;
+  name: string;
+  target_url: string;
+  target_keywords: string[];
+  niche: string | null;
+  created_at: string;
+}
+
+
 export interface DiscoverRequest {
   project_id: string;
   seed_url?: string;
@@ -37,6 +48,36 @@ export interface DiscoverRequest {
   };
   limit?: number;
 }
+
+export interface DiscoverOpportunity {
+  prospect_url: string;
+  prospect_domain: string;
+  page_title: string;
+  page_url: string;
+  snippet: string;
+  opportunity_type: OpportunityType;
+  linkability_score: number;
+  relevance_score: number;
+}
+
+export interface DiscoverResponse {
+  opportunities: DiscoverOpportunity[];
+}
+
+export interface EnrichProspectRequest {
+  prospect_id: string;
+}
+
+export interface EnrichProspectResponse {
+  prospect: ProspectRecord;
+  enrichment: {
+    contact_name: string | null;
+    contact_email: string | null;
+    contact_role: string | null;
+    contact_source: string;
+  };
+}
+
 
 export interface OutreachGenerateRequest {
   prospect_id: string;
@@ -86,4 +127,20 @@ export interface ProspectRecord {
   tags: string[];
   created_at: string;
   updated_at: string;
+}
+
+export interface OutreachEmailRecord {
+  id: string;
+  prospect_id: string;
+  org_id: string;
+  project_id: string;
+  subject: string;
+  body_html: string;
+  body_text: string;
+  ai_generated: boolean;
+  edited_by_user: boolean;
+  status: OutreachEmailStatus;
+  is_followup: boolean;
+  followup_number: number;
+  created_at: string;
 }

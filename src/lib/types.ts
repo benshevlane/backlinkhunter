@@ -48,6 +48,21 @@ export interface DiscoverRequest {
   limit?: number;
 }
 
+
+
+export interface DiscoverResponse {
+  opportunities: {
+    prospect_url: string;
+    prospect_domain: string;
+    page_title: string;
+    page_url: string;
+    snippet: string;
+    opportunity_type: OpportunityType;
+    linkability_score: number;
+    relevance_score: number;
+  }[];
+}
+
 export interface OutreachGenerateRequest {
   prospect_id: string;
   tone: 'professional' | 'friendly' | 'concise';

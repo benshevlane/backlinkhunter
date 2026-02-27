@@ -27,6 +27,7 @@ Then open `http://localhost:3000` and go to `/projects`.
 2. Open project prospects board
 3. Add prospects with URLs and optional contact emails
 4. Move prospects across pipeline statuses from the board
+5. Run keyword-based discovery from `/discover` to generate scored opportunity candidates
 
 ## What should be built next
 

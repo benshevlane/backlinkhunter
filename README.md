@@ -7,12 +7,20 @@ Backlink Hunter is a SaaS platform for discovering backlink opportunities, enric
 The repository now includes:
 
 - Product and delivery docs in `docs/`
-- Initial Supabase schema migration in `supabase/migrations/`
-- Shared domain/API types in `src/lib/types.ts`
+- Initial Supabase/PostgreSQL schema migration in `supabase/migrations/`
+- Shared TypeScript domain/API contract types in `src/lib/types.ts`
 - Next.js 14 App Router scaffold for auth and dashboard routes
 - Working local project + prospect pipeline backed by a file-based dev store (`.data/dev-store.json`)
 - Functional discovery API and dashboard page
 - Functional contact enrichment API and outreach draft generation API
+
+## Tech Stack Target
+
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS + shadcn/ui
+- Supabase (PostgreSQL + Auth + Edge Functions)
+- Stripe, Gmail API, Microsoft Graph, Anthropic Claude
 
 ## Run locally
 
@@ -33,10 +41,10 @@ Then open `http://localhost:3000` and go to `/projects`.
 6. Generate outreach drafts from prospect cards
 7. Run keyword-based discovery from `/discover` to generate scored opportunity candidates
 
-## What should be built next
+## Next Steps
 
 1. Replace file-based store with Supabase database access layer and organisation scoping.
 2. Add Supabase auth/session and role-based route protection.
 3. Replace simulated enrichment and draft generation services with real external providers (Hunter/Apollo/Anthropic).
 4. Build outreach send + webhook reply lifecycle and thread UI.
-5. Add link monitoring jobs, keyword alerts, reports visualisations, and billing enforcement.
+5. Add link monitoring jobs, keyword alerts, reports visualisations, billing enforcement, and Sentry instrumentation.

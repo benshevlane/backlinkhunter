@@ -48,8 +48,6 @@ export interface DiscoverRequest {
   limit?: number;
 }
 
-
-
 export interface DiscoverResponse {
   opportunities: {
     prospect_url: string;
@@ -61,6 +59,20 @@ export interface DiscoverResponse {
     linkability_score: number;
     relevance_score: number;
   }[];
+}
+
+export interface EnrichProspectRequest {
+  prospect_id: string;
+}
+
+export interface EnrichProspectResponse {
+  prospect: ProspectRecord;
+  enrichment: {
+    contact_name: string | null;
+    contact_email: string | null;
+    contact_role: string | null;
+    contact_source: string;
+  };
 }
 
 export interface OutreachGenerateRequest {
@@ -111,4 +123,20 @@ export interface ProspectRecord {
   tags: string[];
   created_at: string;
   updated_at: string;
+}
+
+export interface OutreachEmailRecord {
+  id: string;
+  prospect_id: string;
+  org_id: string;
+  project_id: string;
+  subject: string;
+  body_html: string;
+  body_text: string;
+  ai_generated: boolean;
+  edited_by_user: boolean;
+  status: OutreachEmailStatus;
+  is_followup: boolean;
+  followup_number: number;
+  created_at: string;
 }

@@ -19,7 +19,7 @@ export default async function ProjectProspectsPage({ params }: { params: { id: s
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold text-slate-900">{project.name} · Prospects</h1>
-        <p className="text-sm text-slate-600">Track opportunities through the outreach pipeline.</p>
+        <p className="text-sm text-slate-600">Track opportunities through the outreach pipeline. Enrich contacts and generate drafts directly from cards.</p>
       </header>
 
       <CreateProspectForm projectId={project.id} />

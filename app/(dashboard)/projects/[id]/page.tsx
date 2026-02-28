@@ -48,10 +48,14 @@ export default async function ProjectOverviewPage({ params }: { params: { id: st
         ))}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Link href={`/projects/${project.id}/pipeline`} className="rounded-lg border-2 border-slate-900 bg-slate-900 p-4 text-white hover:bg-slate-800">
+          <p className="text-sm font-medium">Pipeline + Agent</p>
+          <p className="mt-1 text-xs text-slate-300">Kanban board with AI assistant</p>
+        </Link>
         <Link href={`/projects/${project.id}/prospects`} className="rounded-lg border border-slate-200 bg-white p-4 hover:bg-slate-50">
-          <p className="text-sm font-medium text-slate-900">Prospects pipeline</p>
-          <p className="mt-1 text-xs text-slate-600">Manage and move prospects through statuses</p>
+          <p className="text-sm font-medium text-slate-900">Prospects list</p>
+          <p className="mt-1 text-xs text-slate-600">View and manage all prospects</p>
         </Link>
         <Link href={`/projects/${project.id}/outreach`} className="rounded-lg border border-slate-200 bg-white p-4 hover:bg-slate-50">
           <p className="text-sm font-medium text-slate-900">Outreach workspace</p>

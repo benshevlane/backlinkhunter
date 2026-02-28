@@ -1,5 +1,6 @@
 import { createServerSupabase } from '@/src/lib/supabase/server';
 import type {
+  EmailIntegrationRecord,
   EntryMethod,
   ExistingBacklinkRecord,
   ImportJobEntryMethod,
@@ -601,6 +602,179 @@ export async function listWonProspectsForProject(
 
   if (error) throw error;
   return (data ?? []) as ProspectRecord[];
+}
+
+// ---- Agent Messages ----
+
+export interface AgentMessageRecord {
+  id: string;
+  project_id: string;
+  user_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  tool_calls: unknown | null;
+  tool_results: unknown | null;
+  created_at: string;
+}
+
+export async function listAgentMessages(
+  projectId: string,
+  userId: string,
+): Promise<AgentMessageRecord[]> {
+  const { data, error } = await supabase()
+    .from('agent_messages')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as AgentMessageRecord[];
+}
+
+export async function createAgentMessage(
+  input: {
+    project_id: string;
+    user_id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    tool_calls?: unknown;
+    tool_results?: unknown;
+  },
+): Promise<AgentMessageRecord> {
+  const { data, error } = await supabase()
+    .from('agent_messages')
+    .insert({
+      project_id: input.project_id,
+      user_id: input.user_id,
+      role: input.role,
+      content: input.content,
+      tool_calls: input.tool_calls ?? null,
+      tool_results: input.tool_results ?? null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as AgentMessageRecord;
+}
+
+// ---- Email Integrations ----
+
+export async function getActiveEmailIntegration(
+  orgId: string,
+  userId: string,
+): Promise<EmailIntegrationRecord | null> {
+  const { data, error } = await supabase()
+    .from('email_integrations')
+    .select('*')
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return (data as EmailIntegrationRecord) ?? null;
+}
+
+export async function upsertEmailIntegration(
+  input: {
+    org_id: string;
+    user_id: string;
+    provider: 'gmail' | 'outlook';
+    email_address: string;
+    access_token: string;
+    refresh_token: string;
+    token_expires_at: string;
+    is_active: boolean;
+  },
+): Promise<EmailIntegrationRecord> {
+  // Deactivate existing integrations for this user first
+  await supabase()
+    .from('email_integrations')
+    .update({ is_active: false })
+    .eq('org_id', input.org_id)
+    .eq('user_id', input.user_id)
+    .eq('provider', input.provider);
+
+  const { data, error } = await supabase()
+    .from('email_integrations')
+    .insert({
+      org_id: input.org_id,
+      user_id: input.user_id,
+      provider: input.provider,
+      email_address: input.email_address,
+      access_token: input.access_token,
+      refresh_token: input.refresh_token,
+      token_expires_at: input.token_expires_at,
+      is_active: input.is_active,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as EmailIntegrationRecord;
+}
+
+export async function updateEmailIntegration(
+  id: string,
+  orgId: string,
+  patch: {
+    access_token?: string;
+    refresh_token?: string;
+    token_expires_at?: string;
+    is_active?: boolean;
+  },
+): Promise<EmailIntegrationRecord> {
+  const { data, error } = await supabase()
+    .from('email_integrations')
+    .update(patch)
+    .eq('id', id)
+    .eq('org_id', orgId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as EmailIntegrationRecord;
+}
+
+export async function getOutreachEmailById(
+  emailId: string,
+  orgId: string,
+): Promise<OutreachEmailRecord | null> {
+  const { data, error } = await supabase()
+    .from('outreach_emails')
+    .select('*')
+    .eq('id', emailId)
+    .eq('org_id', orgId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return (data as OutreachEmailRecord) ?? null;
+}
+
+export async function updateOutreachEmail(
+  id: string,
+  orgId: string,
+  patch: {
+    status?: OutreachEmailRecord['status'];
+    sent_at?: string;
+    gmail_message_id?: string;
+    replied_at?: string;
+    reply_snippet?: string;
+  },
+): Promise<OutreachEmailRecord> {
+  const { data, error } = await supabase()
+    .from('outreach_emails')
+    .update(patch)
+    .eq('id', id)
+    .eq('org_id', orgId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as OutreachEmailRecord;
 }
 
 // ---- Organisation / Quota ----

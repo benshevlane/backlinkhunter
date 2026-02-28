@@ -121,6 +121,27 @@ export const discoverConfirmSchema = z.object({
   selected_urls: z.array(z.string().url()).min(1),
 });
 
+// ---- Link Verification ----
+
+export const linkVerifySchema = z.object({
+  prospect_id: z.string().uuid(),
+});
+
+export const linkMonitorSchema = z.object({
+  project_id: z.string().uuid(),
+});
+
+// ---- Keyword Alerts ----
+
+export const alertsCheckSchema = z.object({
+  project_id: z.string().uuid().optional(),
+});
+
+export const createKeywordAlertSchema = z.object({
+  project_id: z.string().uuid(),
+  keyword: z.string().min(1).max(200),
+});
+
 // ---- Auth ----
 
 export const loginSchema = z.object({

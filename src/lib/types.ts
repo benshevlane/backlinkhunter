@@ -11,6 +11,8 @@ export type OpportunityType =
 
 export type ProspectStatus =
   | 'identified'
+  | 'enriched'
+  | 'outreach_drafted'
   | 'outreach_queued'
   | 'contacted'
   | 'followed_up'
@@ -20,9 +22,31 @@ export type ProspectStatus =
   | 'needs_manual_enrichment'
   | 'verification_error';
 
+export type EntryMethod = 'discovery' | 'import' | 'manual';
+
+export type ImportJobStatus = 'pending' | 'running' | 'complete' | 'failed';
+
+export type ImportJobEntryMethod = 'discovery' | 'import';
+
+export type ValidationBucket = 'pass' | 'review' | 'fail';
+
 export type OutreachEmailStatus = 'draft' | 'scheduled' | 'sent' | 'failed';
 
 export type EmailProvider = 'gmail' | 'outlook';
+
+export interface ProjectRecord {
+  id: string;
+  org_id: string;
+  name: string;
+  target_url: string;
+  target_keywords: string[];
+  niche: string | null;
+  description: string | null;
+  domain_rating: number | null;
+  target_audience: string | null;
+  created_at: string;
+}
+
 
 export interface DiscoverRequest {
   project_id: string;
@@ -37,6 +61,36 @@ export interface DiscoverRequest {
   };
   limit?: number;
 }
+
+export interface DiscoverOpportunity {
+  prospect_url: string;
+  prospect_domain: string;
+  page_title: string;
+  page_url: string;
+  snippet: string;
+  opportunity_type: OpportunityType;
+  linkability_score: number;
+  relevance_score: number;
+}
+
+export interface DiscoverResponse {
+  opportunities: DiscoverOpportunity[];
+}
+
+export interface EnrichProspectRequest {
+  prospect_id: string;
+}
+
+export interface EnrichProspectResponse {
+  prospect: ProspectRecord;
+  enrichment: {
+    contact_name: string | null;
+    contact_email: string | null;
+    contact_role: string | null;
+    contact_source: string;
+  };
+}
+
 
 export interface OutreachGenerateRequest {
   prospect_id: string;
@@ -75,6 +129,7 @@ export interface ProspectRecord {
   opportunity_type: OpportunityType | null;
   linkability_score: number | null;
   relevance_score: number | null;
+  entry_method: EntryMethod | null;
   status: ProspectStatus;
   first_contacted_at: string | null;
   last_contacted_at: string | null;
@@ -86,4 +141,180 @@ export interface ProspectRecord {
   tags: string[];
   created_at: string;
   updated_at: string;
+}
+
+export interface OutreachEmailRecord {
+  id: string;
+  prospect_id: string;
+  org_id: string;
+  project_id: string;
+  subject: string;
+  body_html: string;
+  body_text: string;
+  ai_generated: boolean;
+  edited_by_user: boolean;
+  status: OutreachEmailStatus;
+  scheduled_for: string | null;
+  sent_at: string | null;
+  gmail_message_id: string | null;
+  outlook_message_id: string | null;
+  opened_at: string | null;
+  replied_at: string | null;
+  reply_snippet: string | null;
+  is_followup: boolean;
+  followup_number: number;
+  parent_email_id: string | null;
+  created_at: string;
+}
+
+// ---- DB entity types matching the schema ----
+
+export interface UserRecord {
+  id: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+}
+
+export interface OrganisationRecord {
+  id: string;
+  name: string;
+  plan: PlanTier;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  monthly_prospect_limit: number;
+  prospects_used_this_month: number;
+  created_at: string;
+}
+
+export interface OrganisationMemberRecord {
+  id: string;
+  org_id: string;
+  user_id: string;
+  role: OrgRole;
+  created_at: string;
+}
+
+export interface EmailIntegrationRecord {
+  id: string;
+  org_id: string;
+  user_id: string;
+  provider: EmailProvider;
+  email_address: string;
+  access_token: string | null;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface LinkExchangeListingRecord {
+  id: string;
+  org_id: string;
+  project_id: string;
+  domain: string;
+  niche: string;
+  da_range: string | null;
+  looking_for: string | null;
+  offering: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type LinkExchangeMatchStatus = 'pending' | 'accepted' | 'declined' | 'completed';
+
+export interface LinkExchangeMatchRecord {
+  id: string;
+  listing_a_id: string;
+  listing_b_id: string;
+  status: LinkExchangeMatchStatus;
+  initiated_by: string | null;
+  created_at: string;
+}
+
+export interface KeywordAlertRecord {
+  id: string;
+  project_id: string;
+  org_id: string;
+  keyword: string;
+  last_checked_at: string | null;
+  last_results_count: number | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  org_id: string;
+  user_id: string | null;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+// ---- v2 additions: existing backlinks + import jobs ----
+
+export interface ExistingBacklinkRecord {
+  id: string;
+  project_id: string;
+  org_id: string;
+  linking_domain: string;
+  linking_url: string | null;
+  dr: number | null;
+  first_seen: string | null;
+  last_seen: string | null;
+  created_at: string;
+}
+
+export interface ImportJobRecord {
+  id: string;
+  project_id: string;
+  org_id: string;
+  entry_method: ImportJobEntryMethod;
+  total_submitted: number;
+  total_passed: number;
+  total_review: number;
+  total_failed: number;
+  status: ImportJobStatus;
+  input_payload: Record<string, unknown> | null;
+  results_payload: Record<string, unknown> | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+// ---- v2 request/response types ----
+
+export interface SiteAnalysisResult {
+  niche: string;
+  description: string;
+  target_keywords: string[];
+  target_audience: string;
+  domain_rating: number | null;
+  content_themes: string[];
+}
+
+export interface BulkImportValidationResult {
+  url: string;
+  domain: string;
+  bucket: ValidationBucket;
+  reason?: string;
+  domain_authority: number | null;
+  spam_score: number | null;
+  relevance_score: number | null;
+  is_existing_backlink: boolean;
+  is_existing_prospect: boolean;
+}
+
+export interface BulkImportResponse {
+  job_id: string;
+  results: BulkImportValidationResult[];
+  summary: {
+    total: number;
+    passed: number;
+    review: number;
+    failed: number;
+  };
 }

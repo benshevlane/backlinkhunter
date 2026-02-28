@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { discoverOpportunities } from '@/src/lib/discovery';
-import { requireApiAuth, isResponse, parseBody } from '@/src/lib/api-utils';
+import { requireApiAuth, isResponse, parseBody, notFound } from '@/src/lib/api-utils';
 import { discoverSchema } from '@/src/lib/validations';
+import { getProjectById } from '@/src/lib/store';
 import type { DiscoverRequest } from '@/src/lib/types';
 
 export async function POST(request: Request) {
@@ -10,6 +11,9 @@ export async function POST(request: Request) {
 
   const body = await parseBody(request, discoverSchema);
   if (isResponse(body)) return body;
+
+  const project = await getProjectById(body.project_id, auth.orgId);
+  if (!project) return notFound('Project not found');
 
   const payload: DiscoverRequest = {
     project_id: body.project_id,
@@ -20,6 +24,11 @@ export async function POST(request: Request) {
     limit: body.limit ?? 50,
   };
 
-  const opportunities = discoverOpportunities(payload);
+  const opportunities = await discoverOpportunities(
+    payload,
+    auth.orgId,
+    project.target_keywords,
+  );
+
   return NextResponse.json({ opportunities });
 }

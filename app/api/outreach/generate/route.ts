@@ -22,10 +22,7 @@ export async function POST(request: Request) {
     return notFound('project not found');
   }
 
-  const draft = generateOutreachDraft(prospect, body, {
-    target_url: project.target_url,
-    niche: project.niche,
-  });
+  const draft = await generateOutreachDraft(prospect, body, project);
 
   const email = await createOutreachEmail({
     prospect_id: prospect.id,

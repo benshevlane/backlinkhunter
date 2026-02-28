@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createProject, listProjects } from '@/src/lib/store';
+import { createProject, listProjects, upsertExistingBacklinks } from '@/src/lib/store';
 import { requireApiAuth, isResponse, parseBody } from '@/src/lib/api-utils';
 import { createProjectSchema } from '@/src/lib/validations';
+import { getBacklinks } from '@/src/lib/integrations/dataforseo';
+import { logger } from '@/src/lib/logger';
+
+const log = logger.create('projects');
 
 export async function GET() {
   const auth = await requireApiAuth();
@@ -28,5 +32,25 @@ export async function POST(request: Request) {
     target_audience: body.target_audience,
   });
 
+  // Step 2: Fetch existing backlink profile in the background
+  // This runs after the response is sent so the user doesn't wait
+  fetchAndStoreBacklinks(project.id, auth.orgId, body.target_url).catch((err) => {
+    log.error('Failed to fetch backlinks', { projectId: project.id, error: String(err) });
+  });
+
   return NextResponse.json({ project }, { status: 201 });
+}
+
+async function fetchAndStoreBacklinks(projectId: string, orgId: string, targetUrl: string) {
+  const domain = new URL(targetUrl).hostname.replace(/^www\./, '');
+  log.info('Fetching existing backlinks', { domain, projectId });
+
+  const backlinks = await getBacklinks(domain);
+  if (backlinks.length === 0) {
+    log.info('No backlinks found', { domain });
+    return;
+  }
+
+  await upsertExistingBacklinks(projectId, orgId, backlinks);
+  log.info('Stored existing backlinks', { domain, count: backlinks.length });
 }

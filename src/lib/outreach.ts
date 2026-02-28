@@ -1,49 +1,27 @@
-import type { OutreachGenerateRequest, ProspectRecord } from '@/src/lib/types';
+import type { OutreachGenerateRequest, ProjectRecord, ProspectRecord } from '@/src/lib/types';
+import { generateOutreachEmail } from '@/src/lib/integrations/anthropic';
+import { logger } from '@/src/lib/logger';
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+const log = logger.create('outreach');
 
-function makeSubject(prospect: ProspectRecord, tone: OutreachGenerateRequest['tone']) {
-  const tonePrefix = tone === 'friendly' ? 'Quick idea' : tone === 'concise' ? 'Link suggestion' : 'Partnership idea';
-  return `${tonePrefix} for ${prospect.prospect_domain}`;
-}
-
-export function generateOutreachDraft(
+/**
+ * Generate a personalised outreach email using Anthropic Claude.
+ * Falls back to a template when the API is not configured.
+ */
+export async function generateOutreachDraft(
   prospect: ProspectRecord,
   input: OutreachGenerateRequest,
-  project: { target_url: string; niche: string | null },
-) {
-  const contact = prospect.contact_name ?? 'there';
-  const context = prospect.page_title ?? prospect.prospect_domain;
+  project: ProjectRecord,
+): Promise<{ subject: string; body_text: string; body_html: string }> {
+  log.info('Generating outreach email', {
+    prospect: prospect.prospect_domain,
+    tone: input.tone,
+    followup: input.is_followup,
+  });
 
-  const bodyText = [
-    `Hi ${contact},`,
-    '',
-    `I enjoyed your ${context} content and thought a practical addition for your readers could be a reference to ${project.target_url}.`,
-    input.custom_value_prop
-      ? `Value proposition: ${input.custom_value_prop}`
-      : `We can provide a concise expert contribution aligned with ${project.niche ?? 'your niche'}.`,
-    '',
-    input.is_followup
-      ? `Following up briefly on my previous note${input.followup_number ? ` (#${input.followup_number})` : ''}.`
-      : 'If useful, I can send a draft paragraph and anchor options for quick review.',
-    '',
-    'Would you be open to that?',
-  ].join('\n');
-
-  const bodyHtml = bodyText
-    .split('\n\n')
-    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br/>')}</p>`)
-    .join('');
-
-  return {
-    subject: makeSubject(prospect, input.tone),
-    body_text: bodyText,
-    body_html: bodyHtml,
-  };
+  return generateOutreachEmail(prospect, project, {
+    tone: input.tone,
+    custom_value_prop: input.custom_value_prop,
+    is_followup: input.is_followup,
+  });
 }

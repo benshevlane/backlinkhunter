@@ -1,35 +1,44 @@
-import type { ProspectRecord } from '@/src/lib/types';
+import type { ProspectRecord, ProspectStatus } from '@/src/lib/types';
+import { findBestContact } from '@/src/lib/integrations/hunter';
+import { logger } from '@/src/lib/logger';
 
-const roles = ['editor', 'content manager', 'founder', 'marketing lead'] as const;
+const log = logger.create('enrichment');
 
-function titleCase(value: string) {
-  return value
-    .split('-')
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+export interface EnrichmentResult {
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_role: string | null;
+  contact_source: string;
+  status: ProspectStatus;
 }
 
-export function enrichProspectContact(prospect: ProspectRecord) {
-  const domainToken = prospect.prospect_domain.split('.')[0] ?? 'team';
-  const name = `${titleCase(domainToken)} Team`;
-  const role = roles[domainToken.length % roles.length];
+/**
+ * Enrich a prospect with contact details using Hunter.io.
+ * Falls back to flagging for manual enrichment when no contact is found.
+ */
+export async function enrichProspectContact(prospect: ProspectRecord): Promise<EnrichmentResult> {
+  log.info('Enriching prospect', { domain: prospect.prospect_domain, id: prospect.id });
 
-  if (prospect.prospect_domain.includes('noemail')) {
+  const contact = await findBestContact(prospect.prospect_domain);
+
+  if (!contact) {
+    log.info('No contact found', { domain: prospect.prospect_domain });
     return {
       contact_name: null,
       contact_email: null,
       contact_role: null,
-      contact_source: 'simulated_no_match',
-      status: 'needs_manual_enrichment' as const,
+      contact_source: 'hunter_no_match',
+      status: 'needs_manual_enrichment',
     };
   }
 
+  log.info('Contact found', { domain: prospect.prospect_domain, role: contact.role });
+
   return {
-    contact_name: name,
-    contact_email: `hello@${prospect.prospect_domain}`,
-    contact_role: role,
-    contact_source: 'simulated_hunter',
-    status: prospect.status,
+    contact_name: contact.name || null,
+    contact_email: contact.email,
+    contact_role: contact.role || null,
+    contact_source: 'hunter',
+    status: 'enriched',
   };
 }

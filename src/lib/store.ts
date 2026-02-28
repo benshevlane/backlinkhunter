@@ -5,6 +5,8 @@ import type {
   ImportJobEntryMethod,
   ImportJobRecord,
   ImportJobStatus,
+  KeywordAlertRecord,
+  OrganisationRecord,
   OutreachEmailRecord,
   ProjectRecord,
   ProspectRecord,
@@ -493,4 +495,162 @@ export async function listImportJobsForProject(
 
   if (error) throw error;
   return (data ?? []) as ImportJobRecord[];
+}
+
+// ---- Keyword Alerts ----
+
+export async function listKeywordAlertsForProject(
+  projectId: string,
+  orgId: string,
+): Promise<KeywordAlertRecord[]> {
+  const { data, error } = await supabase()
+    .from('keyword_alerts')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('org_id', orgId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as KeywordAlertRecord[];
+}
+
+export async function createKeywordAlert(
+  projectId: string,
+  orgId: string,
+  keyword: string,
+): Promise<KeywordAlertRecord> {
+  const { data, error } = await supabase()
+    .from('keyword_alerts')
+    .insert({ project_id: projectId, org_id: orgId, keyword })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as KeywordAlertRecord;
+}
+
+export async function updateKeywordAlert(
+  alertId: string,
+  orgId: string,
+  patch: {
+    last_checked_at?: string;
+    last_results_count?: number;
+    is_active?: boolean;
+  },
+): Promise<KeywordAlertRecord> {
+  const { data, error } = await supabase()
+    .from('keyword_alerts')
+    .update(patch)
+    .eq('id', alertId)
+    .eq('org_id', orgId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as KeywordAlertRecord;
+}
+
+export async function listActiveKeywordAlerts(orgId: string): Promise<KeywordAlertRecord[]> {
+  const { data, error } = await supabase()
+    .from('keyword_alerts')
+    .select('*')
+    .eq('org_id', orgId)
+    .eq('is_active', true)
+    .order('last_checked_at', { ascending: true, nullsFirst: true });
+
+  if (error) throw error;
+  return (data ?? []) as KeywordAlertRecord[];
+}
+
+// ---- Link Verification ----
+
+export async function updateProspectLinkStatus(
+  id: string,
+  orgId: string,
+  patch: {
+    link_live: boolean;
+    link_url?: string | null;
+    link_verified_at?: string;
+    link_lost_at?: string | null;
+    status?: ProspectStatus;
+  },
+): Promise<ProspectRecord> {
+  const { data, error } = await supabase()
+    .from('prospects')
+    .update(patch)
+    .eq('id', id)
+    .eq('org_id', orgId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ProspectRecord;
+}
+
+export async function listWonProspectsForProject(
+  projectId: string,
+  orgId: string,
+): Promise<ProspectRecord[]> {
+  const { data, error } = await supabase()
+    .from('prospects')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('org_id', orgId)
+    .eq('status', 'won')
+    .order('link_verified_at', { ascending: true, nullsFirst: true });
+
+  if (error) throw error;
+  return (data ?? []) as ProspectRecord[];
+}
+
+// ---- Organisation / Quota ----
+
+export async function getOrganisation(orgId: string): Promise<OrganisationRecord | null> {
+  const { data, error } = await supabase()
+    .from('organisations')
+    .select('*')
+    .eq('id', orgId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return (data as OrganisationRecord) ?? null;
+}
+
+export async function incrementProspectsUsed(orgId: string, count: number): Promise<void> {
+  const { error } = await supabase().rpc('increment_prospects_used', {
+    p_org_id: orgId,
+    p_count: count,
+  });
+
+  // If the RPC doesn't exist yet, fall back to a manual update
+  if (error) {
+    const org = await getOrganisation(orgId);
+    if (!org) throw new Error('Organisation not found');
+    const { error: updateError } = await supabase()
+      .from('organisations')
+      .update({ prospects_used_this_month: org.prospects_used_this_month + count })
+      .eq('id', orgId);
+    if (updateError) throw updateError;
+  }
+}
+
+export async function updateOrganisationPlan(
+  orgId: string,
+  patch: {
+    plan?: OrganisationRecord['plan'];
+    stripe_customer_id?: string | null;
+    stripe_subscription_id?: string | null;
+    monthly_prospect_limit?: number;
+    prospects_used_this_month?: number;
+  },
+): Promise<OrganisationRecord> {
+  const { data, error } = await supabase()
+    .from('organisations')
+    .update(patch)
+    .eq('id', orgId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as OrganisationRecord;
 }

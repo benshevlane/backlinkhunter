@@ -12,6 +12,8 @@ export const opportunityTypeSchema = z.enum([
 
 export const prospectStatusSchema = z.enum([
   'identified',
+  'enriched',
+  'outreach_drafted',
   'outreach_queued',
   'contacted',
   'followed_up',
@@ -21,6 +23,8 @@ export const prospectStatusSchema = z.enum([
   'needs_manual_enrichment',
   'verification_error',
 ]);
+
+export const entryMethodSchema = z.enum(['discovery', 'import', 'manual']);
 
 export const outreachToneSchema = z.enum(['professional', 'friendly', 'concise']);
 
@@ -79,6 +83,39 @@ export const outreachGenerateSchema = z.object({
   custom_value_prop: z.string().max(1000).optional(),
   is_followup: z.boolean().default(false),
   followup_number: z.union([z.literal(1), z.literal(2)]).optional(),
+});
+
+// ---- Site Analysis ----
+
+export const siteAnalysisSchema = z.object({
+  site_url: z.string().url(),
+});
+
+// ---- Bulk Import ----
+
+export const bulkImportValidateSchema = z.object({
+  project_id: z.string().uuid(),
+  urls: z.array(z.string().url()).min(1).max(500),
+  thresholds: z
+    .object({
+      min_da: z.number().int().min(0).max(100).default(10),
+      min_relevance: z.number().int().min(0).max(100).default(30),
+      max_spam_score: z.number().int().min(0).max(100).default(30),
+    })
+    .optional()
+    .default({ min_da: 10, min_relevance: 30, max_spam_score: 30 }),
+});
+
+export const bulkImportConfirmSchema = z.object({
+  job_id: z.string().uuid(),
+  approved_urls: z.array(z.string().url()).min(1),
+});
+
+// ---- Discovery Confirm ----
+
+export const discoverConfirmSchema = z.object({
+  job_id: z.string().uuid(),
+  selected_urls: z.array(z.string().url()).min(1),
 });
 
 // ---- Auth ----

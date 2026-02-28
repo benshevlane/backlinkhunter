@@ -1,5 +1,15 @@
 import { createServerSupabase } from '@/src/lib/supabase/server';
-import type { OutreachEmailRecord, ProjectRecord, ProspectRecord, ProspectStatus } from '@/src/lib/types';
+import type {
+  EntryMethod,
+  ExistingBacklinkRecord,
+  ImportJobEntryMethod,
+  ImportJobRecord,
+  ImportJobStatus,
+  OutreachEmailRecord,
+  ProjectRecord,
+  ProspectRecord,
+  ProspectStatus,
+} from '@/src/lib/types';
 
 function supabase() {
   return createServerSupabase();
@@ -32,7 +42,15 @@ export async function getProjectById(projectId: string, orgId: string): Promise<
 
 export async function createProject(
   orgId: string,
-  input: { name: string; target_url: string; niche?: string; target_keywords?: string[] },
+  input: {
+    name: string;
+    target_url: string;
+    niche?: string;
+    target_keywords?: string[];
+    description?: string;
+    domain_rating?: number;
+    target_audience?: string;
+  },
 ): Promise<ProjectRecord> {
   const { data, error } = await supabase()
     .from('projects')
@@ -42,7 +60,34 @@ export async function createProject(
       target_url: input.target_url,
       niche: input.niche ?? null,
       target_keywords: input.target_keywords ?? [],
+      description: input.description ?? null,
+      domain_rating: input.domain_rating ?? null,
+      target_audience: input.target_audience ?? null,
     })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ProjectRecord;
+}
+
+export async function updateProject(
+  projectId: string,
+  orgId: string,
+  patch: {
+    name?: string;
+    niche?: string | null;
+    target_keywords?: string[];
+    description?: string | null;
+    domain_rating?: number | null;
+    target_audience?: string | null;
+  },
+): Promise<ProjectRecord> {
+  const { data, error } = await supabase()
+    .from('projects')
+    .update(patch)
+    .eq('id', projectId)
+    .eq('org_id', orgId)
     .select()
     .single();
 
@@ -210,4 +255,242 @@ export async function listOutreachEmailsForProspect(prospectId: string, orgId: s
 
   if (error) throw error;
   return (data ?? []) as OutreachEmailRecord[];
+}
+
+// ---- Existing Backlinks ----
+
+export async function listExistingBacklinksForProject(
+  projectId: string,
+  orgId: string,
+): Promise<ExistingBacklinkRecord[]> {
+  const { data, error } = await supabase()
+    .from('existing_backlinks')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('org_id', orgId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as ExistingBacklinkRecord[];
+}
+
+export async function createExistingBacklink(
+  projectId: string,
+  orgId: string,
+  input: {
+    linking_domain: string;
+    linking_url?: string;
+    dr?: number;
+    first_seen?: string;
+    last_seen?: string;
+  },
+): Promise<ExistingBacklinkRecord> {
+  const { data, error } = await supabase()
+    .from('existing_backlinks')
+    .insert({
+      project_id: projectId,
+      org_id: orgId,
+      linking_domain: input.linking_domain,
+      linking_url: input.linking_url ?? null,
+      dr: input.dr ?? null,
+      first_seen: input.first_seen ?? null,
+      last_seen: input.last_seen ?? null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ExistingBacklinkRecord;
+}
+
+export async function upsertExistingBacklinks(
+  projectId: string,
+  orgId: string,
+  backlinks: {
+    linking_domain: string;
+    linking_url?: string;
+    dr?: number;
+    first_seen?: string;
+    last_seen?: string;
+  }[],
+): Promise<ExistingBacklinkRecord[]> {
+  if (backlinks.length === 0) return [];
+
+  const rows = backlinks.map((b) => ({
+    project_id: projectId,
+    org_id: orgId,
+    linking_domain: b.linking_domain,
+    linking_url: b.linking_url ?? null,
+    dr: b.dr ?? null,
+    first_seen: b.first_seen ?? null,
+    last_seen: b.last_seen ?? null,
+  }));
+
+  const { data, error } = await supabase()
+    .from('existing_backlinks')
+    .upsert(rows, { onConflict: 'project_id,linking_domain', ignoreDuplicates: false })
+    .select();
+
+  if (error) throw error;
+  return (data ?? []) as ExistingBacklinkRecord[];
+}
+
+export async function checkDomainIsExistingBacklink(
+  projectId: string,
+  orgId: string,
+  domain: string,
+): Promise<boolean> {
+  const { count, error } = await supabase()
+    .from('existing_backlinks')
+    .select('id', { count: 'exact', head: true })
+    .eq('project_id', projectId)
+    .eq('org_id', orgId)
+    .eq('linking_domain', domain);
+
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
+// ---- Prospect Dedup ----
+
+export async function checkDomainIsExistingProspect(
+  projectId: string,
+  orgId: string,
+  domain: string,
+): Promise<boolean> {
+  const { count, error } = await supabase()
+    .from('prospects')
+    .select('id', { count: 'exact', head: true })
+    .eq('project_id', projectId)
+    .eq('org_id', orgId)
+    .eq('prospect_domain', domain);
+
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
+// ---- Bulk Prospect Creation ----
+
+export async function createProspectsBulk(
+  projectId: string,
+  orgId: string,
+  prospects: {
+    prospect_url: string;
+    prospect_domain: string;
+    page_title?: string;
+    page_url?: string;
+    snippet?: string;
+    opportunity_type?: ProspectRecord['opportunity_type'];
+    domain_authority?: number;
+    spam_score?: number;
+    linkability_score?: number;
+    relevance_score?: number;
+    entry_method: EntryMethod;
+  }[],
+): Promise<ProspectRecord[]> {
+  if (prospects.length === 0) return [];
+
+  const rows = prospects.map((p) => ({
+    project_id: projectId,
+    org_id: orgId,
+    prospect_url: p.prospect_url,
+    prospect_domain: p.prospect_domain,
+    page_title: p.page_title ?? null,
+    page_url: p.page_url ?? null,
+    snippet: p.snippet ?? null,
+    opportunity_type: p.opportunity_type ?? null,
+    domain_authority: p.domain_authority ?? null,
+    spam_score: p.spam_score ?? null,
+    linkability_score: p.linkability_score ?? null,
+    relevance_score: p.relevance_score ?? null,
+    entry_method: p.entry_method,
+    status: 'identified' as const,
+  }));
+
+  const { data, error } = await supabase()
+    .from('prospects')
+    .insert(rows)
+    .select();
+
+  if (error) throw error;
+  return (data ?? []) as ProspectRecord[];
+}
+
+// ---- Import Jobs ----
+
+export async function createImportJob(
+  projectId: string,
+  orgId: string,
+  input: {
+    entry_method: ImportJobEntryMethod;
+    total_submitted: number;
+    input_payload?: Record<string, unknown>;
+  },
+): Promise<ImportJobRecord> {
+  const { data, error } = await supabase()
+    .from('import_jobs')
+    .insert({
+      project_id: projectId,
+      org_id: orgId,
+      entry_method: input.entry_method,
+      total_submitted: input.total_submitted,
+      input_payload: input.input_payload ?? null,
+      status: 'pending',
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ImportJobRecord;
+}
+
+export async function getImportJobById(jobId: string, orgId: string): Promise<ImportJobRecord | null> {
+  const { data, error } = await supabase()
+    .from('import_jobs')
+    .select('*')
+    .eq('id', jobId)
+    .eq('org_id', orgId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return (data as ImportJobRecord) ?? null;
+}
+
+export async function updateImportJob(
+  jobId: string,
+  orgId: string,
+  patch: {
+    status?: ImportJobStatus;
+    total_passed?: number;
+    total_review?: number;
+    total_failed?: number;
+    results_payload?: Record<string, unknown>;
+    completed_at?: string;
+  },
+): Promise<ImportJobRecord> {
+  const { data, error } = await supabase()
+    .from('import_jobs')
+    .update(patch)
+    .eq('id', jobId)
+    .eq('org_id', orgId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ImportJobRecord;
+}
+
+export async function listImportJobsForProject(
+  projectId: string,
+  orgId: string,
+): Promise<ImportJobRecord[]> {
+  const { data, error } = await supabase()
+    .from('import_jobs')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('org_id', orgId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as ImportJobRecord[];
 }

@@ -6,6 +6,8 @@ import type { ProspectRecord, ProspectStatus } from '@/src/lib/types';
 
 const columns: { key: ProspectStatus; label: string }[] = [
   { key: 'identified', label: 'Identified' },
+  { key: 'enriched', label: 'Enriched' },
+  { key: 'outreach_drafted', label: 'Outreach Drafted' },
   { key: 'outreach_queued', label: 'Outreach Queued' },
   { key: 'contacted', label: 'Contacted' },
   { key: 'followed_up', label: 'Followed Up' },

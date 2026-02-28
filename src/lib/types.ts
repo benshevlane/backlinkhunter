@@ -11,6 +11,8 @@ export type OpportunityType =
 
 export type ProspectStatus =
   | 'identified'
+  | 'enriched'
+  | 'outreach_drafted'
   | 'outreach_queued'
   | 'contacted'
   | 'followed_up'
@@ -19,6 +21,14 @@ export type ProspectStatus =
   | 'not_relevant'
   | 'needs_manual_enrichment'
   | 'verification_error';
+
+export type EntryMethod = 'discovery' | 'import' | 'manual';
+
+export type ImportJobStatus = 'pending' | 'running' | 'complete' | 'failed';
+
+export type ImportJobEntryMethod = 'discovery' | 'import';
+
+export type ValidationBucket = 'pass' | 'review' | 'fail';
 
 export type OutreachEmailStatus = 'draft' | 'scheduled' | 'sent' | 'failed';
 
@@ -31,6 +41,9 @@ export interface ProjectRecord {
   target_url: string;
   target_keywords: string[];
   niche: string | null;
+  description: string | null;
+  domain_rating: number | null;
+  target_audience: string | null;
   created_at: string;
 }
 
@@ -116,6 +129,7 @@ export interface ProspectRecord {
   opportunity_type: OpportunityType | null;
   linkability_score: number | null;
   relevance_score: number | null;
+  entry_method: EntryMethod | null;
   status: ProspectStatus;
   first_contacted_at: string | null;
   last_contacted_at: string | null;
@@ -239,4 +253,68 @@ export interface AuditLogEntry {
   entity_id: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
+}
+
+// ---- v2 additions: existing backlinks + import jobs ----
+
+export interface ExistingBacklinkRecord {
+  id: string;
+  project_id: string;
+  org_id: string;
+  linking_domain: string;
+  linking_url: string | null;
+  dr: number | null;
+  first_seen: string | null;
+  last_seen: string | null;
+  created_at: string;
+}
+
+export interface ImportJobRecord {
+  id: string;
+  project_id: string;
+  org_id: string;
+  entry_method: ImportJobEntryMethod;
+  total_submitted: number;
+  total_passed: number;
+  total_review: number;
+  total_failed: number;
+  status: ImportJobStatus;
+  input_payload: Record<string, unknown> | null;
+  results_payload: Record<string, unknown> | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+// ---- v2 request/response types ----
+
+export interface SiteAnalysisResult {
+  niche: string;
+  description: string;
+  target_keywords: string[];
+  target_audience: string;
+  domain_rating: number | null;
+  content_themes: string[];
+}
+
+export interface BulkImportValidationResult {
+  url: string;
+  domain: string;
+  bucket: ValidationBucket;
+  reason?: string;
+  domain_authority: number | null;
+  spam_score: number | null;
+  relevance_score: number | null;
+  is_existing_backlink: boolean;
+  is_existing_prospect: boolean;
+}
+
+export interface BulkImportResponse {
+  job_id: string;
+  results: BulkImportValidationResult[];
+  summary: {
+    total: number;
+    passed: number;
+    review: number;
+    failed: number;
+  };
 }

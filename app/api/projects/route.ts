@@ -23,6 +23,9 @@ export async function POST(request: Request) {
     target_url: body.target_url,
     niche: body.niche,
     target_keywords: body.target_keywords,
+    description: body.description,
+    domain_rating: body.domain_rating,
+    target_audience: body.target_audience,
   });
 
   return NextResponse.json({ project }, { status: 201 });

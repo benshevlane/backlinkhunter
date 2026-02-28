@@ -35,6 +35,9 @@ export const createProjectSchema = z.object({
   target_url: z.string().url(),
   niche: z.string().max(200).optional(),
   target_keywords: z.array(z.string().max(100)).max(50).optional(),
+  description: z.string().max(500).optional(),
+  domain_rating: z.number().min(0).max(100).optional(),
+  target_audience: z.string().max(500).optional(),
 });
 
 // ---- Prospects ----

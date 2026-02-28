@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { discoverOpportunities } from '@/src/lib/discovery';
 import { requireApiAuth, isResponse, parseBody, notFound } from '@/src/lib/api-utils';
 import { discoverSchema } from '@/src/lib/validations';
-import { getProjectById } from '@/src/lib/store';
+import { getProjectById, createImportJob, updateImportJob } from '@/src/lib/store';
 import type { DiscoverRequest } from '@/src/lib/types';
 
 export async function POST(request: Request) {
@@ -30,5 +30,19 @@ export async function POST(request: Request) {
     project.target_keywords,
   );
 
-  return NextResponse.json({ opportunities });
+  // Create an import_job to track this discovery run so confirm can reference it
+  const job = await createImportJob(project.id, auth.orgId, {
+    entry_method: 'discovery',
+    total_submitted: opportunities.length,
+    input_payload: { seed_keywords: body.seed_keywords, seed_url: body.seed_url, opportunity_types: body.opportunity_types },
+  });
+
+  await updateImportJob(job.id, auth.orgId, {
+    status: 'complete',
+    total_passed: opportunities.length,
+    results_payload: { opportunities } as Record<string, unknown>,
+    completed_at: new Date().toISOString(),
+  });
+
+  return NextResponse.json({ job_id: job.id, opportunities });
 }

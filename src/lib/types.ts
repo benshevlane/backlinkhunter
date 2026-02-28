@@ -32,7 +32,17 @@ export type ValidationBucket = 'pass' | 'review' | 'fail';
 
 export type OutreachEmailStatus = 'draft' | 'scheduled' | 'sent' | 'failed';
 
+export type OutreachTone = 'professional' | 'friendly' | 'concise';
+
+export type ContactSource = 'hunter' | 'hunter_no_match' | 'apollo' | 'manual' | 'scraped';
+
 export type EmailProvider = 'gmail' | 'outlook';
+
+export interface ApiError {
+  error: string;
+  message?: string;
+  issues?: Array<{ path: string; message: string }>;
+}
 
 export interface ProjectRecord {
   id: string;
@@ -94,7 +104,7 @@ export interface EnrichProspectResponse {
 
 export interface OutreachGenerateRequest {
   prospect_id: string;
-  tone: 'professional' | 'friendly' | 'concise';
+  tone: OutreachTone;
   custom_value_prop?: string;
   is_followup: boolean;
   followup_number?: 1 | 2;
@@ -165,6 +175,7 @@ export interface OutreachEmailRecord {
   followup_number: number;
   parent_email_id: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 // ---- DB entity types matching the schema ----

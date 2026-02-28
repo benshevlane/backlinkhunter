@@ -38,8 +38,9 @@ export async function POST(request: Request) {
     followup_number: body.followup_number ?? 0,
   });
 
-  if (prospect.status === 'identified') {
-    await updateProspect(prospect.id, auth.orgId, { status: 'outreach_queued' });
+  // Advance prospect to outreach_drafted when generating a draft from early stages
+  if (prospect.status === 'identified' || prospect.status === 'enriched') {
+    await updateProspect(prospect.id, auth.orgId, { status: 'outreach_drafted' });
   }
 
   const response: OutreachGenerateResponse = {

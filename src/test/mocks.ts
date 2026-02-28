@@ -91,6 +91,7 @@ export function makeOutreachEmail(overrides: Partial<OutreachEmailRecord> = {}):
     followup_number: 0,
     parent_email_id: null,
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     ...overrides,
   };
 }

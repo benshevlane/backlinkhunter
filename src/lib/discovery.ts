@@ -21,12 +21,16 @@ function buildQueries(
     }
   }
 
-  // If a competitor URL was given, add competitor-specific queries
+  // If a competitor URL was given, add competitor-specific queries using project keywords
   if (input.seed_url) {
     try {
       const host = new URL(input.seed_url).hostname;
-      queries.push(`site:${host} "kitchen" OR "interiors" OR "home"`);
-      for (const kw of keywords.slice(0, 3)) {
+      const topKeywords = keywords.slice(0, 3);
+      if (topKeywords.length > 0) {
+        const kwTerms = topKeywords.map((kw) => `"${kw}"`).join(' OR ');
+        queries.push(`site:${host} ${kwTerms}`);
+      }
+      for (const kw of topKeywords) {
         queries.push(`"${host}" "${kw}"`);
       }
     } catch {

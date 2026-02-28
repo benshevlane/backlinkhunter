@@ -1,31 +1,50 @@
 import { NextResponse } from 'next/server';
-import { requireApiAuth, isResponse, parseBody, notFound } from '@/src/lib/api-utils';
+import { requireApiAuth, isResponse, parseBody, notFound, badRequest } from '@/src/lib/api-utils';
 import { bulkImportValidateSchema, bulkImportConfirmSchema } from '@/src/lib/validations';
-import { getProjectById, getImportJobById, createImportJob, updateImportJob, createProspectsBulk } from '@/src/lib/store';
+import { getProjectById, getImportJobById, createImportJob, updateImportJob, createProspectsBulk, getOrganisation, incrementProspectsUsed } from '@/src/lib/store';
 import { validateImportUrls } from '@/src/lib/import-validation';
+import { checkProspectQuota } from '@/src/lib/quota';
 import type { BulkImportResponse } from '@/src/lib/types';
 
 /**
  * POST /api/prospects/bulk-import
  * Two-phase: send with `urls` to validate, or with `job_id` + `approved_urls` to confirm.
+ *
+ * We peek at the raw body to determine which phase, then re-parse with the
+ * correct Zod schema for proper validation.
  */
 export async function POST(request: Request) {
   const auth = await requireApiAuth();
   if (isResponse(auth)) return auth;
 
-  const raw = await request.clone().json().catch(() => ({}));
+  let raw: Record<string, unknown>;
+  try {
+    raw = await request.json();
+  } catch {
+    return badRequest('invalid JSON body');
+  }
 
-  // Phase 2: Confirm import
+  // Phase 2: Confirm import (has job_id + approved_urls)
   if (raw.job_id && raw.approved_urls) {
-    const body = await parseBody(request, bulkImportConfirmSchema);
-    if (isResponse(body)) return body;
-    return handleConfirm(body, auth.orgId);
+    const parsed = bulkImportConfirmSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'validation_error', issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })) },
+        { status: 400 },
+      );
+    }
+    return handleConfirm(parsed.data, auth.orgId);
   }
 
   // Phase 1: Validate URLs
-  const body = await parseBody(request, bulkImportValidateSchema);
-  if (isResponse(body)) return body;
-  return handleValidate(body, auth.orgId);
+  const parsed = bulkImportValidateSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'validation_error', issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })) },
+      { status: 400 },
+    );
+  }
+  return handleValidate(parsed.data, auth.orgId);
 }
 
 async function handleValidate(
@@ -77,6 +96,15 @@ async function handleConfirm(
   const job = await getImportJobById(body.job_id, orgId);
   if (!job) return notFound('Import job not found');
 
+  // Check quota before creating prospects
+  const org = await getOrganisation(orgId);
+  if (org) {
+    const quota = checkProspectQuota(org, body.approved_urls.length);
+    if (!quota.allowed) {
+      return badRequest(`Quota exceeded: ${quota.remaining} prospects remaining this month (plan: ${quota.plan})`);
+    }
+  }
+
   const prospects = body.approved_urls.map((url) => {
     let domain = '';
     try {
@@ -92,6 +120,11 @@ async function handleConfirm(
   });
 
   const created = await createProspectsBulk(job.project_id, orgId, prospects);
+
+  // Increment usage counter
+  if (org && created.length > 0) {
+    await incrementProspectsUsed(orgId, created.length);
+  }
 
   return NextResponse.json({
     job_id: job.id,

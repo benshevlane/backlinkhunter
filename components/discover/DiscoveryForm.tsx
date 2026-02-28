@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import type { DiscoverResponse, DiscoverOpportunity } from '@/src/lib/types';
+import type { DiscoverOpportunity } from '@/src/lib/types';
 
 const allTypes = [
   { id: 'guest_post', label: 'Guest Post' },
@@ -22,6 +22,7 @@ export function DiscoveryForm({ projectId }: { projectId?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<DiscoverOpportunity[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [jobId, setJobId] = useState<string | null>(null);
 
   function toggleType(id: string) {
     setSelectedTypes((prev) =>
@@ -75,7 +76,8 @@ export function DiscoveryForm({ projectId }: { projectId?: string }) {
         throw new Error(data?.error ?? 'Discovery failed');
       }
 
-      const payload = (await response.json()) as DiscoverResponse;
+      const payload = (await response.json()) as { job_id: string; opportunities: DiscoverOpportunity[] };
+      setJobId(payload.job_id);
       setResults(payload.opportunities);
       setSelected(new Set(payload.opportunities.map((r) => r.prospect_url)));
     } catch (err) {
@@ -86,7 +88,7 @@ export function DiscoveryForm({ projectId }: { projectId?: string }) {
   }
 
   async function handleConfirm() {
-    if (selected.size === 0) return;
+    if (selected.size === 0 || !jobId) return;
     setSaving(true);
     setError(null);
 
@@ -95,7 +97,7 @@ export function DiscoveryForm({ projectId }: { projectId?: string }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          job_id: currentProjectId,
+          job_id: jobId,
           selected_urls: Array.from(selected),
         }),
       });
@@ -243,7 +245,7 @@ export function DiscoveryForm({ projectId }: { projectId?: string }) {
                       </a>
                     </td>
                     <td className="py-2 pr-4 text-slate-600 max-w-xs truncate">{item.page_title}</td>
-                    <td className="py-2 pr-4 text-slate-600">{item.opportunity_type.replace('_', ' ')}</td>
+                    <td className="py-2 pr-4 text-slate-600">{item.opportunity_type.replaceAll('_', ' ')}</td>
                     <td className="py-2 pr-4 text-right">
                       <ScoreBadge score={item.linkability_score} />
                     </td>

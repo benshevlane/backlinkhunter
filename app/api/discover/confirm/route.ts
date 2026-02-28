@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { requireApiAuth, isResponse, parseBody, notFound } from '@/src/lib/api-utils';
+import { requireApiAuth, isResponse, parseBody, notFound, badRequest } from '@/src/lib/api-utils';
 import { discoverConfirmSchema } from '@/src/lib/validations';
-import { getProjectById, createProspectsBulk, createImportJob, updateImportJob } from '@/src/lib/store';
+import { getProjectById, getImportJobById, createProspectsBulk, updateImportJob, getOrganisation, incrementProspectsUsed } from '@/src/lib/store';
+import { checkProspectQuota } from '@/src/lib/quota';
 
 export async function POST(request: Request) {
   const auth = await requireApiAuth();
@@ -10,14 +11,21 @@ export async function POST(request: Request) {
   const body = await parseBody(request, discoverConfirmSchema);
   if (isResponse(body)) return body;
 
-  // job_id here acts as project_id for discovery confirmation
-  const project = await getProjectById(body.job_id, auth.orgId);
+  // Look up the import job to find the project_id
+  const existingJob = await getImportJobById(body.job_id, auth.orgId);
+  if (!existingJob) return notFound('Import job not found');
+
+  const project = await getProjectById(existingJob.project_id, auth.orgId);
   if (!project) return notFound('Project not found');
 
-  const job = await createImportJob(project.id, auth.orgId, {
-    entry_method: 'discovery',
-    total_submitted: body.selected_urls.length,
-  });
+  // Check quota before creating prospects
+  const org = await getOrganisation(auth.orgId);
+  if (org) {
+    const quota = checkProspectQuota(org, body.selected_urls.length);
+    if (!quota.allowed) {
+      return badRequest(`Quota exceeded: ${quota.remaining} prospects remaining this month (plan: ${quota.plan})`);
+    }
+  }
 
   const prospects = body.selected_urls.map((url) => {
     let domain = '';
@@ -35,14 +43,19 @@ export async function POST(request: Request) {
 
   const created = await createProspectsBulk(project.id, auth.orgId, prospects);
 
-  await updateImportJob(job.id, auth.orgId, {
+  // Increment usage counter
+  if (org && created.length > 0) {
+    await incrementProspectsUsed(auth.orgId, created.length);
+  }
+
+  await updateImportJob(existingJob.id, auth.orgId, {
     status: 'complete',
     total_passed: created.length,
     completed_at: new Date().toISOString(),
   });
 
   return NextResponse.json({
-    job_id: job.id,
+    job_id: existingJob.id,
     prospects_created: created.length,
     project_id: project.id,
   }, { status: 201 });

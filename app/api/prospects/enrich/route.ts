@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     return notFound('prospect not found');
   }
 
-  const enrichment = enrichProspectContact(prospect);
+  const enrichment = await enrichProspectContact(prospect);
   const updated = await updateProspect(prospect.id, auth.orgId, {
     contact_name: enrichment.contact_name,
     contact_email: enrichment.contact_email,
